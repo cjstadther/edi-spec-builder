@@ -149,4 +149,4 @@ The application supports importing specifications from:
 
 ## License
 
-ISC
+MIT
