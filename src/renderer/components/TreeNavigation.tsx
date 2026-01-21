@@ -121,6 +121,7 @@ function LoopTreeItem({
         </span>
         <span className="tree-icon loop">L</span>
         <span className="tree-item-name">{loop.name}</span>
+        {loop.maxUse > 1 && <span className="tree-array-badge" title={`Repeats up to ${loop.maxUse}`}>[]</span>}
         <span className="tree-item-meta">{loop.usage}</span>
       </div>
 
@@ -207,6 +208,7 @@ function SegmentTreeItem({
         </span>
         <span className="tree-icon segment">S</span>
         <span className="tree-item-name">{segment.name}</span>
+        {segment.maxUse > 1 && <span className="tree-array-badge" title={`Repeats up to ${segment.maxUse}`}>[]</span>}
         <span className="tree-item-meta">{segment.usage}</span>
       </div>
 

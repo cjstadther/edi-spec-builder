@@ -165,7 +165,10 @@ export function SegmentEditor({ segment, path, specification, onUpdate }: Segmen
     <div className="editor">
       <div className="card">
         <div className="card-header">
-          <h3>{segment.name} - {segment.description}</h3>
+          <h3>
+              {segment.name} - {segment.description}
+              {segment.maxUse > 1 && <span className="repeat-badge array" style={{ marginLeft: '8px' }}>[{segment.maxUse}]</span>}
+            </h3>
           <button className="btn btn-danger btn-sm" onClick={handleDeleteSegment}>
             Delete Segment
           </button>

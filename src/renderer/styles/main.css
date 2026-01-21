@@ -212,6 +212,22 @@ body {
   margin-left: 8px;
 }
 
+.tree-array-badge {
+  font-size: 10px;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  color: var(--color-accent);
+  background-color: #ebf8ff;
+  padding: 1px 4px;
+  border-radius: 3px;
+  margin-left: 4px;
+}
+
+.tree-item-header.selected .tree-array-badge {
+  background-color: rgba(255, 255, 255, 0.2);
+  color: var(--color-white);
+}
+
 .tree-children {
   margin-left: 24px;
 }
@@ -398,6 +414,28 @@ body {
 .usage-badge.conditional {
   background-color: #fefcbf;
   color: #975a16;
+}
+
+/* Repeat/Array badges */
+.repeat-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px 6px;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+}
+
+.repeat-badge.single {
+  background-color: var(--color-bg-alt);
+  color: var(--color-text-muted);
+}
+
+.repeat-badge.array {
+  background-color: #ebf8ff;
+  color: var(--color-accent);
 }
 
 /* Tabs */
