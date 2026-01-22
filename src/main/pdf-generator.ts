@@ -41,12 +41,11 @@ function formatUsage(usage: UsageType): string {
   }
 }
 
-function formatCardinality(minUse: number, maxUse: number, usage: UsageType): string {
-  const usageChar = usage;
+function formatCardinality(minUse: number, maxUse: number): string {
   if (maxUse === 1 && minUse <= 1) {
-    return `${usageChar} ${maxUse}`;
+    return `${maxUse}`;
   }
-  return `${usageChar} ${minUse}..${maxUse > 9999 ? '>1' : maxUse}`;
+  return `${minUse}..${maxUse > 9999 ? '>1' : maxUse}`;
 }
 
 export async function generatePDF(specification: Specification, outputPath: string): Promise<void> {
@@ -241,11 +240,14 @@ function renderLoop(doc: PDFKit.PDFDocument, loop: Loop, number: number, depth: 
   doc.moveDown(0.3);
 
   // Loop metadata
+  const loopUsageText = loop.maxUse > 1
+    ? `Usage: ${formatUsage(loop.usage)} | Repeat: ${formatCardinality(loop.minUse, loop.maxUse)}`
+    : `Usage: ${formatUsage(loop.usage)}`;
   doc
     .font(FONTS.regular)
     .fontSize(10)
     .fillColor(COLORS.muted)
-    .text(`Usage: ${formatUsage(loop.usage)} | Repeat: ${formatCardinality(loop.minUse, loop.maxUse, loop.usage)}`, 72 + indent);
+    .text(loopUsageText, 72 + indent);
 
   if (loop.conditionDescription) {
     doc.moveDown(0.3);
@@ -339,17 +341,21 @@ function renderSegment(doc: PDFKit.PDFDocument, segment: Segment, depth: number)
   }
 
   // Segment Header
+  
   doc
     .font(FONTS.bold)
     .fontSize(12)
     .fillColor(COLORS.secondary)
     .text(`${segment.name} - ${segment.description}`, 72 + indent);
 
+  const segmentUsageText = segment.maxUse > 1
+    ? `Usage: ${formatUsage(segment.usage)} | Repeat: ${formatCardinality(segment.minUse, segment.maxUse)}`
+    : `Usage: ${formatUsage(segment.usage)}`;
   doc
     .font(FONTS.regular)
     .fontSize(9)
     .fillColor(COLORS.muted)
-    .text(`Usage: ${formatUsage(segment.usage)} | Repeat: ${formatCardinality(segment.minUse, segment.maxUse, segment.usage)}`, 72 + indent);
+    .text(segmentUsageText, 72 + indent);
 
   if (segment.conditionDescription) {
     doc

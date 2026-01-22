@@ -127,34 +127,50 @@ function LoopTreeItem({
 
       {isExpanded && (
         <div className="tree-children">
-          {loop.segments.map((segment, segIndex) => (
-            <SegmentTreeItem
-              key={segment.id}
-              segment={segment}
-              depth={depth + 1}
-              index={segIndex}
-              selection={selection}
-              expandedNodes={expandedNodes}
-              onSelect={onSelect}
-              onToggleExpand={onToggleExpand}
-              onUpdate={onUpdate}
-              loopPath={currentPath}
-            />
-          ))}
-          {loop.loops.map((childLoop, loopIndex) => (
-            <LoopTreeItem
-              key={childLoop.id}
-              loop={childLoop}
-              depth={depth + 1}
-              index={loopIndex}
-              selection={selection}
-              expandedNodes={expandedNodes}
-              onSelect={onSelect}
-              onToggleExpand={onToggleExpand}
-              onUpdate={onUpdate}
-              parentPath={currentPath}
-            />
-          ))}
+          {(() => {
+            // Combine segments and loops, sort by order property
+            const items: Array<{ type: 'segment' | 'loop'; item: typeof loop.segments[0] | typeof loop.loops[0]; order: number }> = [
+              ...loop.segments.map((s, i) => ({ type: 'segment' as const, item: s, order: s.order ?? i })),
+              ...loop.loops.map((l, i) => ({ type: 'loop' as const, item: l, order: l.order ?? (loop.segments.length + i) })),
+            ];
+            items.sort((a, b) => a.order - b.order);
+
+            return items.map((entry, idx) => {
+              if (entry.type === 'segment') {
+                const segment = entry.item as typeof loop.segments[0];
+                return (
+                  <SegmentTreeItem
+                    key={segment.id}
+                    segment={segment}
+                    depth={depth + 1}
+                    index={idx}
+                    selection={selection}
+                    expandedNodes={expandedNodes}
+                    onSelect={onSelect}
+                    onToggleExpand={onToggleExpand}
+                    onUpdate={onUpdate}
+                    loopPath={currentPath}
+                  />
+                );
+              } else {
+                const childLoop = entry.item as typeof loop.loops[0];
+                return (
+                  <LoopTreeItem
+                    key={childLoop.id}
+                    loop={childLoop}
+                    depth={depth + 1}
+                    index={idx}
+                    selection={selection}
+                    expandedNodes={expandedNodes}
+                    onSelect={onSelect}
+                    onToggleExpand={onToggleExpand}
+                    onUpdate={onUpdate}
+                    parentPath={currentPath}
+                  />
+                );
+              }
+            });
+          })()}
         </div>
       )}
     </div>
