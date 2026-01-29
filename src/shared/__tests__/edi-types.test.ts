@@ -13,6 +13,7 @@ import {
   DiscriminatorRule,
   ExampleEDI,
   UsageType,
+  IPCResponse,
 } from '../models/edi-types';
 
 describe('edi-types', () => {
@@ -59,6 +60,7 @@ describe('edi-types', () => {
 
       expect(spec.metadata.partner).toBe('Acme Corp');
       expect(spec.metadata.description).toBe('Test description');
+      expect(spec.metadata.baseSpecReference).toBe('OpenEDI/005010/810');
     });
   });
 
@@ -148,6 +150,40 @@ describe('edi-types', () => {
       expect(loop.usage).toBe('C');
       expect(loop.conditionDescription).toBe('Required when order is dropship');
     });
+
+    it('should support base spec tracking fields', () => {
+      const loop: Loop = {
+        id: 'loop-1',
+        name: 'N1_LOOP',
+        usage: 'M',
+        minUse: 1,
+        maxUse: 5,
+        segments: [],
+        loops: [],
+        baseUsage: 'O',
+        baseMinUse: 0,
+        baseMaxUse: 10,
+      };
+
+      expect(loop.baseUsage).toBe('O');
+      expect(loop.baseMinUse).toBe(0);
+      expect(loop.baseMaxUse).toBe(10);
+    });
+
+    it('should support order property for interleaving', () => {
+      const loop: Loop = {
+        id: 'loop-1',
+        name: 'N1_LOOP',
+        usage: 'O',
+        minUse: 0,
+        maxUse: 5,
+        segments: [],
+        loops: [],
+        order: 3,
+      };
+
+      expect(loop.order).toBe(3);
+    });
   });
 
   describe('Segment', () => {
@@ -181,6 +217,40 @@ describe('edi-types', () => {
       };
 
       expect(segment.example?.value).toBe('N1*ST*Acme Corp*92*12345~');
+    });
+
+    it('should support base spec tracking fields', () => {
+      const segment: Segment = {
+        id: 'seg-1',
+        name: 'N1',
+        description: 'Party Identification',
+        usage: 'M',
+        minUse: 1,
+        maxUse: 1,
+        elements: [],
+        baseUsage: 'O',
+        baseMinUse: 0,
+        baseMaxUse: 5,
+      };
+
+      expect(segment.baseUsage).toBe('O');
+      expect(segment.baseMinUse).toBe(0);
+      expect(segment.baseMaxUse).toBe(5);
+    });
+
+    it('should support order property for interleaving', () => {
+      const segment: Segment = {
+        id: 'seg-1',
+        name: 'ST',
+        description: 'Transaction Set Header',
+        usage: 'M',
+        minUse: 1,
+        maxUse: 1,
+        elements: [],
+        order: 0,
+      };
+
+      expect(segment.order).toBe(0);
     });
   });
 
@@ -238,6 +308,31 @@ describe('edi-types', () => {
       };
 
       expect(element.example?.value).toBe('Acme Corporation');
+    });
+
+    it('should support base spec tracking fields', () => {
+      const element: Element = {
+        id: 'el-1',
+        position: 1,
+        name: 'Entity Identifier Code',
+        dataType: 'ID',
+        minLength: 2,
+        maxLength: 3,
+        usage: 'M',
+        baseUsage: 'O',
+        codeValues: [
+          { code: 'ST', description: 'Ship To', included: true },
+        ],
+        baseCodes: [
+          { code: 'ST', description: 'Ship To', included: true },
+          { code: 'BT', description: 'Bill To', included: true },
+          { code: 'SU', description: 'Supplier', included: true },
+        ],
+      };
+
+      expect(element.baseUsage).toBe('O');
+      expect(element.baseCodes).toHaveLength(3);
+      expect(element.codeValues).toHaveLength(1);
     });
   });
 
@@ -377,6 +472,56 @@ describe('edi-types', () => {
 
       expect(rule.operator).toBe('one-of');
       expect(rule.values).toHaveLength(3);
+    });
+  });
+
+  describe('IPCResponse', () => {
+    it('should create successful response without data', () => {
+      const response: IPCResponse = {
+        success: true,
+      };
+
+      expect(response.success).toBe(true);
+      expect(response.data).toBeUndefined();
+      expect(response.error).toBeUndefined();
+    });
+
+    it('should create successful response with data', () => {
+      const response: IPCResponse<string> = {
+        success: true,
+        data: 'test-data',
+      };
+
+      expect(response.success).toBe(true);
+      expect(response.data).toBe('test-data');
+    });
+
+    it('should create error response', () => {
+      const response: IPCResponse = {
+        success: false,
+        error: 'Something went wrong',
+      };
+
+      expect(response.success).toBe(false);
+      expect(response.error).toBe('Something went wrong');
+    });
+
+    it('should support generic type parameter', () => {
+      interface CustomData {
+        id: string;
+        value: number;
+      }
+
+      const response: IPCResponse<CustomData> = {
+        success: true,
+        data: {
+          id: 'test-123',
+          value: 42,
+        },
+      };
+
+      expect(response.data?.id).toBe('test-123');
+      expect(response.data?.value).toBe(42);
     });
   });
 });
