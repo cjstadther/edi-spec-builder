@@ -62,6 +62,7 @@ export interface Segment {
   elements: Element[];
   variants?: Variant[];
   example?: InlineExample;
+  order?: number; // Position in parent for interleaving with loops
   // Base spec reference
   baseUsage?: UsageType;
   baseMinUse?: number;
@@ -80,6 +81,7 @@ export interface Loop {
   segments: Segment[];
   loops: Loop[]; // Nested loops
   variants?: Variant[];
+  order?: number; // Position in parent for interleaving with segments
   // Base spec reference
   baseUsage?: UsageType;
   baseMinUse?: number;

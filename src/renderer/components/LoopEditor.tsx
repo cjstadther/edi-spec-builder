@@ -165,7 +165,10 @@ export function LoopEditor({ loop, path, specification, onUpdate }: LoopEditorPr
     <div className="editor">
       <div className="card">
         <div className="card-header">
-          <h3>{loop.name} Loop</h3>
+          <h3>
+              {loop.name} Loop
+              {loop.maxUse > 1 && <span className="repeat-badge array" style={{ marginLeft: '8px' }}>[{loop.maxUse}]</span>}
+            </h3>
           <button className="btn btn-danger btn-sm" onClick={handleDeleteLoop}>
             Delete Loop
           </button>
@@ -318,7 +321,7 @@ export function LoopEditor({ loop, path, specification, onUpdate }: LoopEditorPr
                       <td>{seg.name}</td>
                       <td>{seg.description}</td>
                       <td><UsageBadge usage={seg.usage} /></td>
-                      <td>{seg.maxUse}</td>
+                      <td><RepeatBadge maxUse={seg.maxUse} /></td>
                       <td>
                         <button
                           className="btn btn-danger btn-sm btn-icon"
@@ -344,7 +347,7 @@ export function LoopEditor({ loop, path, specification, onUpdate }: LoopEditorPr
                       <td>{l.name}</td>
                       <td>{l.description}</td>
                       <td><UsageBadge usage={l.usage} /></td>
-                      <td>{l.maxUse}</td>
+                      <td><RepeatBadge maxUse={l.maxUse} /></td>
                       <td>
                         <button
                           className="btn btn-danger btn-sm btn-icon"
@@ -378,4 +381,16 @@ function UsageBadge({ usage }: { usage: UsageType }) {
     C: 'C',
   };
   return <span className={`usage-badge ${classMap[usage]}`}>{labelMap[usage]}</span>;
+}
+
+function RepeatBadge({ maxUse }: { maxUse: number }) {
+  const isArray = maxUse > 1;
+  return (
+    <span 
+      className={`repeat-badge ${isArray ? 'array' : 'single'}`}
+      title={isArray ? `Array (up to ${maxUse})` : 'Single'}
+    >
+      {isArray ? `[${maxUse}]` : '1'}
+    </span>
+  );
 }

@@ -139,6 +139,7 @@ interface OpenAPIProperty {
   type?: string;
   minLength?: number;
   maxLength?: number;
+  maxItems?: number;
   format?: string;
   enum?: string[];
   allOf?: Array<{ $ref?: string }>;
@@ -178,7 +179,8 @@ function importOpenAPISegment(
   segmentId: string,
   schema: OpenAPISchemaDefinition,
   allSchemas: Record<string, OpenAPISchemaDefinition>,
-  requiredSegments: string[]
+  requiredSegments: string[],
+  maxUse: number = 1
 ): Segment {
   const isRequired = requiredSegments.includes(segmentId);
   const elements: Element[] = [];
@@ -243,10 +245,87 @@ function importOpenAPISegment(
     usage: isRequired ? 'M' : 'O',
     baseUsage: isRequired ? 'M' : 'O',
     minUse: isRequired ? 1 : 0,
-    maxUse: 1,
+    maxUse,
     baseMinUse: isRequired ? 1 : 0,
-    baseMaxUse: 1,
+    baseMaxUse: maxUse,
     elements,
+  };
+}
+
+function importOpenAPILoop(
+  loopSchema: OpenAPISchemaDefinition,
+  allSchemas: Record<string, OpenAPISchemaDefinition>,
+  maxUse: number = 1,
+  isRequired: boolean = false,
+  order?: number
+): Loop {
+  const loopId = loopSchema['x-openedi-loop-id'] || 'LOOP';
+  const segments: Segment[] = [];
+  const nestedLoops: Loop[] = [];
+  const requiredItems = loopSchema.required || [];
+
+  if (loopSchema.properties) {
+    let itemOrder = 0;
+    for (const [propKey, prop] of Object.entries(loopSchema.properties)) {
+      if (propKey === 'Model') continue;
+
+      const isArray = prop.type === 'array';
+      const itemMaxUse = isArray ? (prop.maxItems || 999999) : 1;
+
+      // Get the referenced schema
+      let refName: string | undefined;
+      if (prop.$ref) {
+        refName = prop.$ref.replace('#/components/schemas/', '');
+      } else if (isArray && prop.items?.$ref) {
+        refName = prop.items.$ref.replace('#/components/schemas/', '');
+      }
+
+      if (refName) {
+        const refSchema = allSchemas[refName];
+        if (refSchema) {
+          // Check if it's a loop or segment
+          if (refSchema['x-openedi-loop-id']) {
+            // It's a nested loop
+            const nestedLoop = importOpenAPILoop(
+              refSchema,
+              allSchemas,
+              itemMaxUse,
+              requiredItems.includes(propKey),
+              itemOrder
+            );
+            nestedLoops.push(nestedLoop);
+          } else if (refSchema['x-openedi-segment-id']) {
+            // It's a segment
+            const segmentId = refSchema['x-openedi-segment-id'];
+            const segment = importOpenAPISegment(
+              segmentId,
+              refSchema,
+              allSchemas,
+              requiredItems,
+              itemMaxUse
+            );
+            segment.order = itemOrder;
+            segments.push(segment);
+          }
+          itemOrder++;
+        }
+      }
+    }
+  }
+
+  return {
+    id: uuidv4(),
+    name: loopId,
+    description: loopId,
+    usage: isRequired ? 'M' : 'O',
+    baseUsage: isRequired ? 'M' : 'O',
+    minUse: isRequired ? 1 : 0,
+    maxUse,
+    baseMinUse: isRequired ? 1 : 0,
+    baseMaxUse: maxUse,
+    segments,
+    loops: nestedLoops,
+    order,
   };
 }
 
@@ -270,48 +349,61 @@ function importOpenAPIFormat(parsed: OpenAPISchema): Specification {
     throw new Error('No transaction set found in OpenAPI schema (missing x-openedi-message-id)');
   }
 
-  // Get all segment schemas
-  const segmentSchemas: Record<string, OpenAPISchemaDefinition> = {};
-  const loopSchemas: Record<string, OpenAPISchemaDefinition> = {};
-
-  for (const [key, schema] of Object.entries(schemas)) {
-    if (schema['x-openedi-segment-id']) {
-      segmentSchemas[schema['x-openedi-segment-id']] = schema;
-    }
-    if (schema['x-openedi-loop-id']) {
-      loopSchemas[schema['x-openedi-loop-id']] = schema;
-    }
-  }
-
-  // Build segments from the transaction set properties
+  // Build segments and loops from the transaction set properties
   const segments: Segment[] = [];
-  const requiredSegments = transactionSetSchema.required || [];
+  const loops: Loop[] = [];
+  const requiredItems = transactionSetSchema.required || [];
 
   if (transactionSetSchema.properties) {
+    let itemOrder = 0;
     for (const [propKey, prop] of Object.entries(transactionSetSchema.properties)) {
       if (propKey === 'Model') continue;
 
-      // Check if this is a segment reference
-      let segmentId = propKey;
-      let segmentSchema = segmentSchemas[segmentId];
+      const isArray = prop.type === 'array';
+      const itemMaxUse = isArray ? (prop.maxItems || 999999) : 1;
 
-      // Handle $ref
+      // Get the referenced schema
+      let refName: string | undefined;
       if (prop.$ref) {
-        const refName = prop.$ref.replace('#/components/schemas/', '');
-        segmentSchema = schemas[refName];
-        if (segmentSchema?.['x-openedi-segment-id']) {
-          segmentId = segmentSchema['x-openedi-segment-id'];
-        }
+        refName = prop.$ref.replace('#/components/schemas/', '');
+      } else if (isArray && prop.items?.$ref) {
+        refName = prop.items.$ref.replace('#/components/schemas/', '');
       }
 
-      if (segmentSchema) {
-        const segment = importOpenAPISegment(segmentId, segmentSchema, schemas, requiredSegments);
-        segments.push(segment);
+      if (refName) {
+        const refSchema = schemas[refName];
+        if (refSchema) {
+          // Check if it's a loop or segment
+          if (refSchema['x-openedi-loop-id']) {
+            // It's a loop
+            const loop = importOpenAPILoop(
+              refSchema,
+              schemas,
+              itemMaxUse,
+              requiredItems.includes(propKey),
+              itemOrder
+            );
+            loops.push(loop);
+          } else if (refSchema['x-openedi-segment-id']) {
+            // It's a segment
+            const segmentId = refSchema['x-openedi-segment-id'];
+            const segment = importOpenAPISegment(
+              segmentId,
+              refSchema,
+              schemas,
+              requiredItems,
+              itemMaxUse
+            );
+            segment.order = itemOrder;
+            segments.push(segment);
+          }
+          itemOrder++;
+        }
       }
     }
   }
 
-  // Create a single loop to hold all segments
+  // Create a main loop to hold top-level segments, with nested loops
   const mainLoop: Loop = {
     id: uuidv4(),
     name: `TS${transactionSetId}`,
@@ -323,7 +415,7 @@ function importOpenAPIFormat(parsed: OpenAPISchema): Specification {
     baseMinUse: 1,
     baseMaxUse: 1,
     segments,
-    loops: [],
+    loops,
   };
 
   const template = TRANSACTION_SET_TEMPLATES[transactionSetId];
@@ -381,6 +473,7 @@ export function parseAndImportSpec(jsonContent: string): Specification {
 
 // Built-in transaction set templates
 export const TRANSACTION_SET_TEMPLATES: Record<string, { name: string; description: string }> = {
+  '315': { name: 'Status Details (Ocean)', description: 'Ocean shipment status details' },
   '810': { name: 'Invoice', description: 'Invoice transaction set' },
   '850': { name: 'Purchase Order', description: 'Purchase order transaction set' },
   '855': { name: 'Purchase Order Acknowledgment', description: 'PO acknowledgment' },
